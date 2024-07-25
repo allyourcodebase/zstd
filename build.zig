@@ -1,0 +1,168 @@
+const std = @import("std");
+
+pub fn build(b: *std.Build) void {
+    const upstream = b.dependency("zstd", .{});
+    const target = b.standardTargetOptions(.{});
+    const optimize = b.standardOptimizeOption(.{});
+
+    const strip = b.option(bool, "strip", "Omit debug information");
+    const pic = b.option(bool, "pie", "Produce Position Independent Code");
+
+    const compression = b.option(bool, "compression", "build compression module") orelse true;
+    const decompression = b.option(bool, "decompression", "build decompression module") orelse true;
+    const dictbuilder = b.option(bool, "dictbuilder", "build dictbuilder module") orelse compression;
+    const deprecated = b.option(bool, "deprecated", "build deprecated module") orelse false;
+
+    const minify = b.option(bool, "minify", "Configures a bunch of other options to space-optimized defaults") orelse false;
+    const legacy_support = b.option(usize, "legacy-support", "makes it possible to decompress legacy zstd formats") orelse @as(usize, if (minify) 0 else 5);
+    // For example, `-Dlegacy-support=0` means: no support for legacy formats
+    // For example, `-Dlegacy-support=2` means: support legacy formats >= v0.2.0
+    std.debug.assert(legacy_support < 8);
+
+    const disable_assembly = b.option(bool, "disable-assembly", "Assembly support") orelse false;
+    const huf_force_decompress_x1 = b.option(bool, "huf-force-decompress-x1", "") orelse minify;
+    const huf_force_decompress_x2 = b.option(bool, "huf-force-decompress-x2", "") orelse false;
+    const force_decompress_sequences_short = b.option(bool, "force-decompress-sequences-short", "") orelse minify;
+    const force_decompress_sequences_long = b.option(bool, "force-decompress-sequences-long", "") orelse false;
+    const no_inline = b.option(bool, "no-inline", "Disable Inlining") orelse minify;
+    const strip_error_strings = b.option(bool, "strip-error-strings", "removes the error messages that are otherwise returned by `ZSTD_getErrorName` (implied by `-Dminify`)") orelse minify;
+    const exclude_compressors_dfast_and_up = b.option(bool, "exclude-compressors-dfast-and-up", "") orelse false;
+    const exclude_compressors_greedy_and_up = b.option(bool, "exclude-compressors-greedy-and-up", "") orelse false;
+
+    const zstd = b.addStaticLibrary(.{
+        .name = "zstd",
+        .target = target,
+        .optimize = optimize,
+        .strip = strip,
+        .pic = pic,
+        .link_libc = true,
+    });
+    b.installArtifact(zstd);
+    zstd.addCSourceFiles(.{ .root = upstream.path("lib"), .files = common_sources });
+    // zstd does not install into its own subdirectory. :(
+    zstd.installHeader(upstream.path("lib/zstd.h"), "zstd.h");
+    zstd.installHeader(upstream.path("lib/zdict.h"), "zdict.h");
+    zstd.installHeader(upstream.path("lib/zstd_errors.h"), "zstd_errors.h");
+    if (compression) zstd.addCSourceFiles(.{ .root = upstream.path("lib"), .files = compression_sources });
+    if (decompression) zstd.addCSourceFiles(.{ .root = upstream.path("lib"), .files = decompress_sources });
+    if (dictbuilder) zstd.addCSourceFiles(.{ .root = upstream.path("lib"), .files = dict_builder_sources });
+    if (deprecated) zstd.addCSourceFiles(.{ .root = upstream.path("lib"), .files = deprecated_sources });
+    if (legacy_support != 0) {
+        for (legacy_support..8) |i| zstd.addCSourceFile(.{ .file = upstream.path(b.fmt("lib/legacy/zstd_v0{d}.c", .{i})) });
+    }
+
+    if (target.result.cpu.arch == .x86_64) {
+        if (decompression) {
+            zstd.addAssemblyFile(upstream.path("lib/decompress/huf_decompress_amd64.S"));
+        }
+    } else {
+        zstd.defineCMacro("ZSTD_DISABLE_ASM", null);
+    }
+
+    zstd.defineCMacro("ZSTD_LEGACY_SUPPORT", b.fmt("{d}", .{legacy_support}));
+    if (disable_assembly) zstd.defineCMacro("ZSTD_DISABLE_ASM", null);
+    if (huf_force_decompress_x1) zstd.defineCMacro("HUF_FORCE_DECOMPRESS_X1", null);
+    if (huf_force_decompress_x2) zstd.defineCMacro("HUF_FORCE_DECOMPRESS_X2", null);
+    if (force_decompress_sequences_short) zstd.defineCMacro("ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT", null);
+    if (force_decompress_sequences_long) zstd.defineCMacro("ZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG", null);
+    if (no_inline) zstd.defineCMacro("ZSTD_NO_INLINE", null);
+    if (strip_error_strings) zstd.defineCMacro("ZSTD_STRIP_ERROR_STRINGS", null);
+    if (exclude_compressors_dfast_and_up) {
+        zstd.defineCMacro("ZSTD_EXCLUDE_DFAST_BLOCK_COMPRESSOR", null);
+        zstd.defineCMacro("ZSTD_EXCLUDE_GREEDY_BLOCK_COMPRESSOR", null);
+        zstd.defineCMacro("ZSTD_EXCLUDE_LAZY2_BLOCK_COMPRESSOR", null);
+        zstd.defineCMacro("ZSTD_EXCLUDE_BTLAZY2_BLOCK_COMPRESSOR", null);
+        zstd.defineCMacro("ZSTD_EXCLUDE_BTOPT_BLOCK_COMPRESSOR", null);
+        zstd.defineCMacro("ZSTD_EXCLUDE_BTULTRA_BLOCK_COMPRESSOR", null);
+    }
+    if (exclude_compressors_greedy_and_up) {
+        zstd.defineCMacro("ZSTD_EXCLUDE_GREEDY_BLOCK_COMPRESSOR", null);
+        zstd.defineCMacro("ZSTD_EXCLUDE_LAZY2_BLOCK_COMPRESSOR", null);
+        zstd.defineCMacro("ZSTD_EXCLUDE_BTLAZY2_BLOCK_COMPRESSOR", null);
+        zstd.defineCMacro("ZSTD_EXCLUDE_BTOPT_BLOCK_COMPRESSOR", null);
+        zstd.defineCMacro("ZSTD_EXCLUDE_BTULTRA_BLOCK_COMPRESSOR", null);
+    }
+
+    {
+        const examples: []const []const u8 = &.{
+            "simple_compression",
+            "simple_decompression",
+            "multiple_simple_compression",
+            "dictionary_compression",
+            "dictionary_decompression",
+            "streaming_compression",
+            "streaming_decompression",
+            "multiple_streaming_compression",
+            "streaming_memory_usage",
+        };
+
+        for (examples) |name| {
+            const exe = b.addExecutable(.{
+                .name = name,
+                .target = target,
+                .optimize = optimize,
+            });
+            exe.addCSourceFile(.{ .file = upstream.path(b.fmt("examples/{s}.c", .{name})) });
+            exe.addIncludePath(upstream.path("examples/common.c"));
+            exe.linkLibrary(zstd);
+            b.getInstallStep().dependOn(&b.addInstallArtifact(exe, .{ .dest_dir = .{ .override = .{ .custom = "examples" } } }).step);
+        }
+    }
+}
+
+const common_sources: []const []const u8 = &.{
+    "common/debug.c",
+    "common/zstd_common.c",
+    "common/threading.c",
+    "common/entropy_common.c",
+    "common/fse_decompress.c",
+    "common/xxhash.c",
+    "common/error_private.c",
+    "common/pool.c",
+};
+
+const compression_sources: []const []const u8 = &.{
+    "compress/fse_compress.c",
+    "compress/huf_compress.c",
+    "compress/zstd_double_fast.c",
+    "compress/zstd_compress_literals.c",
+    "compress/zstdmt_compress.c",
+    "compress/zstd_compress_superblock.c",
+    "compress/zstd_opt.c",
+    "compress/zstd_compress.c",
+    "compress/zstd_compress_sequences.c",
+    "compress/hist.c",
+    "compress/zstd_ldm.c",
+    "compress/zstd_lazy.c",
+    "compress/zstd_fast.c",
+};
+
+const decompress_sources: []const []const u8 = &.{
+    "decompress/zstd_decompress.c",
+    "decompress/huf_decompress.c",
+    "decompress/zstd_decompress_block.c",
+    "decompress/zstd_ddict.c",
+};
+
+const dict_builder_sources: []const []const u8 = &.{
+    "dictBuilder/divsufsort.c",
+    "dictBuilder/zdict.c",
+    "dictBuilder/cover.c",
+    "dictBuilder/fastcover.c",
+};
+
+const deprecated_sources: []const []const u8 = &.{
+    "deprecated/zbuff_decompress.c",
+    "deprecated/zbuff_common.c",
+    "deprecated/zbuff_compress.c",
+};
+
+const legacy_sources: []const []const u8 = &.{
+    "legacy/zstd_v01.c",
+    "legacy/zstd_v02.c",
+    "legacy/zstd_v03.c",
+    "legacy/zstd_v04.c",
+    "legacy/zstd_v05.c",
+    "legacy/zstd_v06.c",
+    "legacy/zstd_v07.c",
+};

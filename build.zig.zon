@@ -1,0 +1,18 @@
+.{
+    .name = "zstd",
+    .version = "1.5.6",
+    .minimum_zig_version = "0.12.0",
+    .dependencies = .{
+        .zstd = .{
+            .url = "git+https://github.com/facebook/zstd.git#v1.5.6",
+            .hash = "12205df4790849e6ab600128051b962361901b706f75cbffe2eb8da09a81069f9011",
+        },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "LICENSE",
+        "LICENSE-ZSTD",
+        "README.md",
+    },
+}
