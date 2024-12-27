@@ -56,31 +56,31 @@ pub fn build(b: *std.Build) void {
             zstd.addAssemblyFile(upstream.path("lib/decompress/huf_decompress_amd64.S"));
         }
     } else {
-        zstd.defineCMacro("ZSTD_DISABLE_ASM", null);
+        zstd.root_module.addCMacro("ZSTD_DISABLE_ASM", "");
     }
 
-    zstd.defineCMacro("ZSTD_LEGACY_SUPPORT", b.fmt("{d}", .{legacy_support}));
-    if (disable_assembly) zstd.defineCMacro("ZSTD_DISABLE_ASM", null);
-    if (huf_force_decompress_x1) zstd.defineCMacro("HUF_FORCE_DECOMPRESS_X1", null);
-    if (huf_force_decompress_x2) zstd.defineCMacro("HUF_FORCE_DECOMPRESS_X2", null);
-    if (force_decompress_sequences_short) zstd.defineCMacro("ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT", null);
-    if (force_decompress_sequences_long) zstd.defineCMacro("ZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG", null);
-    if (no_inline) zstd.defineCMacro("ZSTD_NO_INLINE", null);
-    if (strip_error_strings) zstd.defineCMacro("ZSTD_STRIP_ERROR_STRINGS", null);
+    zstd.root_module.addCMacro("ZSTD_LEGACY_SUPPORT", b.fmt("{d}", .{legacy_support}));
+    if (disable_assembly) zstd.root_module.addCMacro("ZSTD_DISABLE_ASM", "");
+    if (huf_force_decompress_x1) zstd.root_module.addCMacro("HUF_FORCE_DECOMPRESS_X1", "");
+    if (huf_force_decompress_x2) zstd.root_module.addCMacro("HUF_FORCE_DECOMPRESS_X2", "");
+    if (force_decompress_sequences_short) zstd.root_module.addCMacro("ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT", "");
+    if (force_decompress_sequences_long) zstd.root_module.addCMacro("ZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG", "");
+    if (no_inline) zstd.root_module.addCMacro("ZSTD_NO_INLINE", "");
+    if (strip_error_strings) zstd.root_module.addCMacro("ZSTD_STRIP_ERROR_STRINGS", "");
     if (exclude_compressors_dfast_and_up) {
-        zstd.defineCMacro("ZSTD_EXCLUDE_DFAST_BLOCK_COMPRESSOR", null);
-        zstd.defineCMacro("ZSTD_EXCLUDE_GREEDY_BLOCK_COMPRESSOR", null);
-        zstd.defineCMacro("ZSTD_EXCLUDE_LAZY2_BLOCK_COMPRESSOR", null);
-        zstd.defineCMacro("ZSTD_EXCLUDE_BTLAZY2_BLOCK_COMPRESSOR", null);
-        zstd.defineCMacro("ZSTD_EXCLUDE_BTOPT_BLOCK_COMPRESSOR", null);
-        zstd.defineCMacro("ZSTD_EXCLUDE_BTULTRA_BLOCK_COMPRESSOR", null);
+        zstd.root_module.addCMacro("ZSTD_EXCLUDE_DFAST_BLOCK_COMPRESSOR", "");
+        zstd.root_module.addCMacro("ZSTD_EXCLUDE_GREEDY_BLOCK_COMPRESSOR", "");
+        zstd.root_module.addCMacro("ZSTD_EXCLUDE_LAZY2_BLOCK_COMPRESSOR", "");
+        zstd.root_module.addCMacro("ZSTD_EXCLUDE_BTLAZY2_BLOCK_COMPRESSOR", "");
+        zstd.root_module.addCMacro("ZSTD_EXCLUDE_BTOPT_BLOCK_COMPRESSOR", "");
+        zstd.root_module.addCMacro("ZSTD_EXCLUDE_BTULTRA_BLOCK_COMPRESSOR", "");
     }
     if (exclude_compressors_greedy_and_up) {
-        zstd.defineCMacro("ZSTD_EXCLUDE_GREEDY_BLOCK_COMPRESSOR", null);
-        zstd.defineCMacro("ZSTD_EXCLUDE_LAZY2_BLOCK_COMPRESSOR", null);
-        zstd.defineCMacro("ZSTD_EXCLUDE_BTLAZY2_BLOCK_COMPRESSOR", null);
-        zstd.defineCMacro("ZSTD_EXCLUDE_BTOPT_BLOCK_COMPRESSOR", null);
-        zstd.defineCMacro("ZSTD_EXCLUDE_BTULTRA_BLOCK_COMPRESSOR", null);
+        zstd.root_module.addCMacro("ZSTD_EXCLUDE_GREEDY_BLOCK_COMPRESSOR", "");
+        zstd.root_module.addCMacro("ZSTD_EXCLUDE_LAZY2_BLOCK_COMPRESSOR", "");
+        zstd.root_module.addCMacro("ZSTD_EXCLUDE_BTLAZY2_BLOCK_COMPRESSOR", "");
+        zstd.root_module.addCMacro("ZSTD_EXCLUDE_BTOPT_BLOCK_COMPRESSOR", "");
+        zstd.root_module.addCMacro("ZSTD_EXCLUDE_BTULTRA_BLOCK_COMPRESSOR", "");
     }
 
     {
