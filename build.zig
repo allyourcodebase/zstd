@@ -19,6 +19,7 @@ pub fn build(b: *std.Build) void {
     // For example, `-Dlegacy-support=2` means: support legacy formats >= v0.2.0
     std.debug.assert(legacy_support < 8);
 
+    const multi_thread = b.option(bool, "multi-thread", "Enable multi-threading") orelse (target.result.os.tag != .wasi);
     const disable_assembly = b.option(bool, "disable-assembly", "Assembly support") orelse false;
     const huf_force_decompress_x1 = b.option(bool, "huf-force-decompress-x1", "") orelse minify;
     const huf_force_decompress_x2 = b.option(bool, "huf-force-decompress-x2", "") orelse false;
@@ -60,6 +61,7 @@ pub fn build(b: *std.Build) void {
     }
 
     zstd.root_module.addCMacro("ZSTD_LEGACY_SUPPORT", b.fmt("{d}", .{legacy_support}));
+    if (multi_thread) zstd.root_module.addCMacro("ZSTD_MULTITHREAD", "1");
     if (disable_assembly) zstd.root_module.addCMacro("ZSTD_DISABLE_ASM", "");
     if (huf_force_decompress_x1) zstd.root_module.addCMacro("HUF_FORCE_DECOMPRESS_X1", "");
     if (huf_force_decompress_x2) zstd.root_module.addCMacro("HUF_FORCE_DECOMPRESS_X2", "");
