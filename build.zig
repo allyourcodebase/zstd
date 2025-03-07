@@ -5,6 +5,7 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    const linkage = b.option(std.builtin.LinkMode, "linkage", "Link mode") orelse .static;
     const strip = b.option(bool, "strip", "Omit debug information");
     const pic = b.option(bool, "pie", "Produce Position Independent Code");
 
@@ -30,16 +31,19 @@ pub fn build(b: *std.Build) void {
     const exclude_compressors_dfast_and_up = b.option(bool, "exclude-compressors-dfast-and-up", "") orelse false;
     const exclude_compressors_greedy_and_up = b.option(bool, "exclude-compressors-greedy-and-up", "") orelse false;
 
-    const zstd = b.addStaticLibrary(.{
+    const zstd = b.addLibrary(.{
+        .linkage = linkage,
         .name = "zstd",
-        .target = target,
-        .optimize = optimize,
-        .strip = strip,
-        .pic = pic,
-        .link_libc = true,
+        .root_module = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+            .strip = strip,
+            .pic = pic,
+            .link_libc = true,
+        }),
     });
     b.installArtifact(zstd);
-    zstd.addCSourceFiles(.{ .root = upstream.path("lib"), .files = common_sources });
+    zstd.root_module.addCSourceFiles(.{ .root = upstream.path("lib"), .files = common_sources });
     // zstd does not install into its own subdirectory. :(
     zstd.installHeader(upstream.path("lib/zstd.h"), "zstd.h");
     zstd.installHeader(upstream.path("lib/zdict.h"), "zdict.h");
@@ -54,7 +58,7 @@ pub fn build(b: *std.Build) void {
 
     if (target.result.cpu.arch == .x86_64) {
         if (decompression) {
-            zstd.addAssemblyFile(upstream.path("lib/decompress/huf_decompress_amd64.S"));
+            zstd.root_module.addAssemblyFile(upstream.path("lib/decompress/huf_decompress_amd64.S"));
         }
     } else {
         zstd.root_module.addCMacro("ZSTD_DISABLE_ASM", "");
@@ -101,8 +105,10 @@ pub fn build(b: *std.Build) void {
         for (examples) |name| {
             const exe = b.addExecutable(.{
                 .name = name,
-                .target = target,
-                .optimize = optimize,
+                .root_module = b.createModule(.{
+                    .target = target,
+                    .optimize = optimize,
+                }),
             });
             exe.addCSourceFile(.{ .file = upstream.path(b.fmt("examples/{s}.c", .{name})) });
             exe.addIncludePath(upstream.path("examples/common.c"));
