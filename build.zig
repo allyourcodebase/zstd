@@ -111,7 +111,6 @@ pub fn build(b: *std.Build) void {
 }
 
 const common_sources: []const []const u8 = &.{
-    "common/debug.c",
     "common/zstd_common.c",
     "common/threading.c",
     "common/entropy_common.c",
