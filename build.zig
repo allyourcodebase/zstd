@@ -135,6 +135,7 @@ const compression_sources: []const []const u8 = &.{
     "compress/hist.c",
     "compress/zstd_ldm.c",
     "compress/zstd_lazy.c",
+    "compress/zstd_preSplit.c",
     "compress/zstd_fast.c",
 };
 
